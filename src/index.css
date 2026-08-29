@@ -1,0 +1,158 @@
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --bg-void: #F8F9FE;
+  --bg-panel: #FFFFFF;
+  --bg-panel-2: #EDEAF8;
+  --bg-panel-hover: #FAF9FF;
+  
+  /* Supa Palette Scale (From Image) */
+  --supa-50: #EDEAF8;
+  --supa-100: #DAD4F1;
+  --supa-200: #B6A9E3;
+  --supa-300: #917FD6;
+  --supa-400: #6D54C8;
+  --supa-500: #4829BA;
+  --supa-600: #3A2195;
+  --supa-700: #2B1970;
+  --supa-800: #1D104A;
+  --supa-900: #0E0825;
+
+  /* Accents & Emerald / Cyan highlights */
+  --primary: #4829BA;
+  --primary-hover: #3A2195;
+  --accent-cyan: #06B6D4;
+  --accent-cyan-light: #38BDF8;
+  --accent-emerald: #10B981;
+  --accent-violet: #8B5CF6;
+  --accent-pink: #EC4899;
+  --accent-amber: #F59E0B;
+
+  /* Crystal clear high-contrast typography (AAA compliant) */
+  --paper: #0E0825;       /* Deepest indigo navy for razor-sharp headings */
+  --paper-dim: #3E445B;   /* Rich slate-indigo for high-readability body */
+  --paper-muted: #6B7280; /* Secondary metadata text */
+
+  /* Borders & Dividers */
+  --line: rgba(72, 41, 186, 0.09);
+  --line-bright: rgba(72, 41, 186, 0.18);
+  --border-card: rgba(72, 41, 186, 0.14);
+
+  /* Liquid Glass Effect Variables */
+  --glass-bg: rgba(255, 255, 255, 0.4);
+  --glass-bg-hover: rgba(255, 255, 255, 0.6);
+  --glass-border: 1.5px solid rgba(255, 255, 255, 0.85);
+  --glass-blur: blur(16px);
+  
+  --shadow-liquid: 
+    12px 12px 32px rgba(72, 41, 186, 0.12),
+    -12px -12px 32px rgba(255, 255, 255, 1),
+    inset 3px 3px 8px rgba(255, 255, 255, 0.9),
+    inset -3px -3px 8px rgba(72, 41, 186, 0.08);
+    
+  --shadow-liquid-hover: 
+    16px 16px 40px rgba(72, 41, 186, 0.18),
+    -16px -16px 40px rgba(255, 255, 255, 1),
+    inset 4px 4px 10px rgba(255, 255, 255, 1),
+    inset -4px -4px 10px rgba(72, 41, 186, 0.12);
+    
+  --shadow-btn: 
+    6px 6px 16px rgba(72, 41, 186, 0.15),
+    -6px -6px 16px rgba(255, 255, 255, 1),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.9),
+    inset -2px -2px 4px rgba(72, 41, 186, 0.08);
+
+  /* Gradients */
+  --gradient-supa: linear-gradient(135deg, #4829BA 0%, #8B5CF6 50%, #06B6D4 100%);
+  --gradient-signal: linear-gradient(135deg, #4829BA 0%, #7C3AED 45%, #06B6D4 100%);
+
+  --font-display: 'Chakra Petch', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-void);
+  color: var(--paper);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  margin: 0;
+  letter-spacing: 0.01em;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--supa-500);
+  background: var(--supa-50);
+  border: 1px solid var(--supa-200);
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  box-shadow: 0 2px 8px rgba(72, 41, 186, 0.08);
+}
+
+.eyebrow::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  box-shadow: 0 0 10px var(--accent-cyan);
+  animation: eyebrowpulse 1.8s ease-in-out infinite;
+}
+@keyframes eyebrowpulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.7; }
+}
+
+.container {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--supa-500);
+  outline-offset: 3px;
+}

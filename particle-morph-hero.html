@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Build Club — Particle Morph Hero</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #ffffff; overflow-x: hidden; }
+  #scene-wrap { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; }
+  #scroll-spacer { position: relative; z-index: 1; height: 800vh; pointer-events: none; }
+  .label {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    font-family: -apple-system, sans-serif; font-size: 14px; letter-spacing: 0.15em;
+    text-transform: uppercase; color: #0F6E56; opacity: 0; transition: opacity 0.4s;
+    pointer-events: none; z-index: 2;
+  }
+  #label-top { top: 40px; }
+</style>
+</head>
+<body>
+
+<div id="scene-wrap"><canvas id="c"></canvas></div>
+<div id="scroll-spacer"></div>
+<div class="label" id="label-top"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ---------- config ---------- */
+const N = 7000; // particle count
+const canvas = document.getElementById('c');
+const labelEl = document.getElementById('label-top');
+
+const STAGE_NAMES = ["", "Processor", "", "Drone", "", "Raspberry Pi 5", "", "Arc Reactor"];
+// stage order: disperse, processor, disperse, drone, disperse, pi, disperse, arc(final)
+
+/* ---------- helpers to build point sets, all length N x3 ---------- */
+function alloc() { return new Float32Array(N * 3); }
+function setP(arr, i, x, y, z) { arr[i*3]=x; arr[i*3+1]=y; arr[i*3+2]=z; }
+
+function shapeDisperse(seed) {
+  const arr = alloc();
+  for (let i = 0; i < N; i++) {
+    const r = 7 + Math.random() * 3;
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    setP(arr, i,
+      r * Math.sin(phi) * Math.cos(theta) + (Math.random()-0.5),
+      r * Math.sin(phi) * Math.sin(theta) + (Math.random()-0.5),
+      r * Math.cos(phi) * 0.6
+    );
+  }
+  return arr;
+}
+
+// fills a rectangle (jittered grid) on XY plane, z ~ 0
+function fillRect(arr, startIdx, count, w, h, jitter=0.05, z=0) {
+  const cols = Math.ceil(Math.sqrt(count * (w/h)));
+  const rows = Math.ceil(count / cols);
+  let idx = startIdx;
+  for (let r = 0; r < rows && idx < startIdx + count; r++) {
+    for (let c = 0; c < cols && idx < startIdx + count; c++) {
+      const x = (c / (cols-1) - 0.5) * w + (Math.random()-0.5)*jitter;
+      const y = (r / (rows-1) - 0.5) * h + (Math.random()-0.5)*jitter;
+      setP(arr, idx, x, y, z + (Math.random()-0.5)*0.05);
+      idx++;
+    }
+  }
+  return idx;
+}
+
+// points along a line segment
+function fillLine(arr, startIdx, count, x1,y1,z1, x2,y2,z2, jitter=0.03) {
+  let idx = startIdx;
+  for (let i = 0; i < count; i++) {
+    const t = i/(count-1);
+    setP(arr, idx,
+      x1 + (x2-x1)*t + (Math.random()-0.5)*jitter,
+      y1 + (y2-y1)*t + (Math.random()-0.5)*jitter,
+      z1 + (z2-z1)*t + (Math.random()-0.5)*jitter
+    );
+    idx++;
+  }
+  return idx;
+}
+
+// points on a circle outline
+function fillCircle(arr, startIdx, count, cx, cy, cz, radius, jitter=0.03) {
+  let idx = startIdx;
+  for (let i = 0; i < count; i++) {
+    const a = (i/count) * Math.PI * 2;
+    setP(arr, idx,
+      cx + Math.cos(a)*radius + (Math.random()-0.5)*jitter,
+      cy + Math.sin(a)*radius + (Math.random()-0.5)*jitter,
+      cz + (Math.random()-0.5)*jitter
+    );
+    idx++;
+  }
+  return idx;
+}
+
+function fillRandomFill(arr, startIdx, count, cx, cy, cz, spread) {
+  let idx = startIdx;
+  for (let i=0;i<count;i++){
+    setP(arr, idx, cx+(Math.random()-0.5)*spread, cy+(Math.random()-0.5)*spread, cz+(Math.random()-0.5)*spread);
+    idx++;
+  }
+  return idx;
+}
+
+function shapeProcessor() {
+  // Based on QFP-style IC reference: rectangular black body, dense
+  // gull-wing pins on all 4 sides, two small indent/orientation dots.
+  const arr = alloc();
+  let idx = 0;
+  const bodyW = 3.0, bodyH = 2.1;
+  const bodyCount = Math.floor(N * 0.42);
+  idx = fillRect(arr, idx, bodyCount, bodyW, bodyH, 0.05, 0);
+
+  // two indent dots (orientation marks) near top-left area of body
+  idx = fillCircle(arr, idx, Math.floor(N*0.015), -bodyW*0.22, bodyH*0.15, 0.06, 0.09, 0.015);
+  idx = fillCircle(arr, idx, Math.floor(N*0.015), bodyW*0.15, bodyH*0.22, 0.06, 0.06, 0.015);
+
+  // dense fine-pitch gull-wing pins on all 4 sides (top/bottom = short edges have fewer,
+  // left/right long edges have more, matching QFP proportions)
+  const remaining = N - idx;
+  const pinsLR = 34; // pins along left/right (long) edges
+  const pinsTB = 22; // pins along top/bottom (short) edges
+  const totalPinSlots = pinsLR*2 + pinsTB*2;
+  const perPin = Math.max(1, Math.floor(remaining / totalPinSlots));
+  const pinLen = 0.45;
+  const bend = 0.12; // gull-wing bend depth
+
+  function gullWingPin(x1,y1,x2,y2,bendX,bendY) {
+    const cnt = Math.min(perPin, N-idx);
+    if (cnt <= 0) return;
+    const half = Math.floor(cnt/2);
+    // segment 1: body edge to bend point
+    idx = fillLine(arr, idx, half, x1,y1,0, bendX,bendY,-bend, 0.015);
+    // segment 2: bend point to tip
+    idx = fillLine(arr, idx, cnt-half, bendX,bendY,-bend, x2,y2,0, 0.015);
+  }
+
+  for (let p=0; p<pinsTB && idx<N; p++) {
+    const t = (p+0.5)/pinsTB - 0.5;
+    const x = t*bodyW*0.92;
+    gullWingPin(x, bodyH/2, x, bodyH/2+pinLen, x, bodyH/2+pinLen*0.4); // top
+    gullWingPin(x, -bodyH/2, x, -bodyH/2-pinLen, x, -bodyH/2-pinLen*0.4); // bottom
+  }
+  for (let p=0; p<pinsLR && idx<N; p++) {
+    const t = (p+0.5)/pinsLR - 0.5;
+    const y = t*bodyH*0.94;
+    gullWingPin(bodyW/2, y, bodyW/2+pinLen, y, bodyW/2+pinLen*0.4, y); // right
+    gullWingPin(-bodyW/2, y, -bodyW/2-pinLen, y, -bodyW/2-pinLen*0.4, y); // left
+  }
+
+  if (idx < N) idx = fillRandomFill(arr, idx, N-idx, 0,0,0, 2.6);
+  return arr;
+}
+
+function shapeDrone() {
+  // Based on FPV racing quad reference: X-frame carbon arms, motor hubs
+  // at each tip with angled propeller blades, raised battery/FC stack
+  // sitting on top of the center plate.
+  const arr = alloc();
+  let idx = 0;
+  const armLen = 2.5;
+  const angles = [Math.PI*0.22, Math.PI*0.78, Math.PI*1.22, Math.PI*1.78]; // slightly asymmetric X, like the ref
+  const tips = [];
+
+  // arms: two stacked lines each (top/bottom plate) for a bit of thickness
+  const armCount = Math.floor(N * 0.22);
+  const perArm = Math.floor(armCount/4);
+  angles.forEach(a => {
+    const x2 = Math.cos(a)*armLen, y2 = Math.sin(a)*armLen;
+    idx = fillLine(arr, idx, Math.floor(perArm*0.6), 0,0,-0.05, x2,y2,-0.05, 0.05);
+    idx = fillLine(arr, idx, Math.ceil(perArm*0.4), 0,0,0.05, x2,y2,0.05, 0.05);
+    tips.push([x2,y2,a]);
+  });
+
+  // motor hubs + angled 2-blade props at each tip
+  const motorBudget = Math.floor(N * 0.34);
+  const perTip = Math.floor(motorBudget/4);
+  tips.forEach(([x,y,a]) => {
+    const hubCount = Math.floor(perTip*0.25);
+    idx = fillCircle(arr, idx, hubCount, x, y, 0.08, 0.18, 0.02);
+    // two blades per prop, offset 90deg from arm angle, angled outward
+    const bladeCount = perTip - hubCount;
+    const perBlade = Math.floor(bladeCount/2);
+    const bladeAngle = a + Math.PI/2;
+    const bx1 = x + Math.cos(bladeAngle)*0.75, by1 = y + Math.sin(bladeAngle)*0.75;
+    const bx2 = x - Math.cos(bladeAngle)*0.75, by2 = y - Math.sin(bladeAngle)*0.75;
+    idx = fillLine(arr, idx, perBlade, x,y,0.1, bx1,by1,0.14, 0.05);
+    idx = fillLine(arr, idx, bladeCount-perBlade, x,y,0.1, bx2,by2,0.06, 0.05);
+  });
+
+  // center plate
+  const remaining = N - idx;
+  const plateCount = Math.floor(remaining*0.4);
+  idx = fillRect(arr, idx, plateCount, 1.0, 0.7, 0.04, -0.02);
+
+  // raised battery / FC stack on top, offset toward "front"
+  const stackCount = N - idx;
+  idx = fillRect(arr, idx, stackCount, 0.55, 1.1, 0.04, 0.35);
+
+  return arr;
+}
+
+function shapeRaspberryPi() {
+  // Based on Raspberry Pi 5 reference: landscape green board, 40-pin GPIO
+  // along the top-left edge, gold mounting-hole rings at the corners,
+  // SoC + RP1 chip pair center, stacked USB ports + ethernet top-right,
+  // dual micro-HDMI and USB-C along the bottom edge.
+  const arr = alloc();
+  let idx = 0;
+  const boardW = 4.4, boardH = 2.6;
+
+  const boardCount = Math.floor(N * 0.30);
+  idx = fillRect(arr, idx, boardCount, boardW, boardH, 0.05, 0);
+
+  // 4 mounting-hole rings near the corners
+  const holeInset = 0.28;
+  const holeCount = Math.floor(N*0.02);
+  const perHole = Math.floor(holeCount/4);
+  const holeXY = [
+    [-boardW/2+holeInset,  boardH/2-holeInset],
+    [ boardW/2-holeInset,  boardH/2-holeInset],
+    [-boardW/2+holeInset, -boardH/2+holeInset],
+    [ boardW/2-holeInset, -boardH/2+holeInset],
+  ];
+  holeXY.forEach(([x,y]) => { idx = fillCircle(arr, idx, perHole, x, y, 0.02, 0.11, 0.015); });
+
+  // GPIO header: 40-pin double row along the top edge (left ~85% of width)
+  const gpioCount = Math.floor(N*0.13);
+  const pins = 20;
+  const perPinPair = Math.floor(gpioCount/(pins*2));
+  const gpioSpan = boardW*0.8;
+  const gpioStartX = -boardW/2 + 0.35;
+  for (let row=0; row<2; row++) {
+    for (let p=0; p<pins && idx<N; p++) {
+      const x = gpioStartX + (p/(pins-1))*gpioSpan;
+      const y = boardH/2 - 0.18 - row*0.16;
+      const cnt = Math.min(perPinPair, N-idx);
+      if (cnt>0) idx = fillRandomFill(arr, idx, cnt, x, y, 0.06, 0.05);
+    }
+  }
+
+  // SoC (Broadcom) square, center-left-ish
+  const socCount = Math.floor(N*0.07);
+  idx = fillRect(arr, idx, socCount, 0.85, 0.85, 0.02, -0.28+ (boardH*0)+ -0.0); // z handled below
+  for (let k=idx-socCount; k<idx; k++) { arr[k*3] += -0.35; arr[k*3+1] += -0.15; }
+
+  // RP1 southbridge chip, smaller, right of SoC
+  const rp1Count = Math.floor(N*0.03);
+  idx = fillRect(arr, idx, rp1Count, 0.45, 0.45, 0.02, 0);
+  for (let k=idx-rp1Count; k<idx; k++) { arr[k*3] += 0.55; arr[k*3+1] += -0.05; }
+
+  // stacked USB ports, top-right corner (two rectangles stacked vertically)
+  const usbCount = Math.floor(N*0.09);
+  const perUsb = Math.floor(usbCount/2);
+  for (let u=0; u<2; u++) {
+    const cnt = Math.min(perUsb, N-idx);
+    const before = idx;
+    idx = fillRect(arr, idx, cnt, 0.55, 0.32, 0.02, 0);
+    for (let k=before; k<idx; k++) { arr[k*3] += boardW/2-0.35; arr[k*3+1] += boardH/2-0.55-u*0.4; }
+  }
+
+  // ethernet port, right edge below USB stack
+  const ethCount = Math.min(Math.floor(N*0.05), N-idx);
+  { const before = idx;
+    idx = fillRect(arr, idx, ethCount, 0.5, 0.45, 0.02, 0);
+    for (let k=before; k<idx; k++) { arr[k*3] += boardW/2-0.32; arr[k*3+1] += -0.55; }
+  }
+
+  // two micro-HDMI ports, bottom-left edge
+  const hdmiTotal = Math.min(Math.floor(N*0.06), N-idx);
+  const perHdmi = Math.floor(hdmiTotal/2);
+  for (let h=0; h<2; h++) {
+    const cnt = Math.min(perHdmi, N-idx);
+    const before = idx;
+    idx = fillRect(arr, idx, cnt, 0.4, 0.22, 0.015, 0);
+    for (let k=before; k<idx; k++) { arr[k*3] += -boardW/2+0.55+h*0.55; arr[k*3+1] += -boardH/2+0.16; }
+  }
+
+  // USB-C power port, bottom edge, center-left
+  const usbcCount = Math.min(Math.floor(N*0.03), N-idx);
+  { const before = idx;
+    idx = fillRect(arr, idx, usbcCount, 0.35, 0.18, 0.015, 0);
+    for (let k=before; k<idx; k++) { arr[k*3] += -boardW/2+1.5; arr[k*3+1] += -boardH/2+0.14; }
+  }
+
+  if (idx < N) idx = fillRandomFill(arr, idx, N-idx, 0,0,0, 4);
+  return arr;
+}
+
+function shapeArcReactor() {
+  // Based on the stator/coil reference: a ring of individual segmented
+  // coil "teeth" standing around a bolted center hub, with top and
+  // bottom collar rings capping the assembly.
+  const arr = alloc();
+  let idx = 0;
+  const outerR = 1.9, innerR = 1.15;
+  const toothCount = 16;
+
+  // segmented coil teeth: each is a small vertical block standing on the ring
+  const teethBudget = Math.floor(N * 0.42);
+  const perTooth = Math.floor(teethBudget / toothCount);
+  for (let t=0; t<toothCount && idx<N; t++) {
+    const a = (t/toothCount)*Math.PI*2;
+    const cx = Math.cos(a)*((outerR+innerR)/2);
+    const cy = Math.sin(a)*((outerR+innerR)/2);
+    const cnt = Math.min(perTooth, N-idx);
+    // block spans radially (width) and vertically (height in z)
+    const before = idx;
+    idx = fillRect(arr, idx, cnt, 0.28, 0.55, 0.03, 0);
+    for (let k=before; k<idx; k++) {
+      // rotate the little rect to face outward, then translate + tilt into z as "height"
+      const lx = arr[k*3], ly = arr[k*3+1];
+      arr[k*3]   = cx + lx*Math.cos(a) - 0*Math.sin(a);
+      arr[k*3+1] = cy + lx*Math.sin(a) + 0*Math.cos(a);
+      arr[k*3+2] = ly; // use board's local y as vertical (z) extent -> teeth "stand up"
+    }
+  }
+
+  // top collar ring + bottom collar ring
+  const collarBudget = Math.floor(N*0.22);
+  idx = fillCircle(arr, idx, Math.floor(collarBudget/2), 0,0, 0.32, outerR*0.92, 0.03);
+  idx = fillCircle(arr, idx, Math.ceil(collarBudget/2),  0,0,-0.32, outerR*0.92, 0.03);
+
+  // inner hub ring with bolt holes
+  const hubBudget = Math.floor(N*0.16);
+  idx = fillCircle(arr, idx, Math.floor(hubBudget*0.5), 0,0,0, innerR, 0.025);
+  const boltCount = 10;
+  const perBolt = Math.floor(hubBudget*0.5/boltCount);
+  for (let b=0; b<boltCount && idx<N; b++) {
+    const a = (b/boltCount)*Math.PI*2;
+    const cnt = Math.min(perBolt, N-idx);
+    if (cnt>0) idx = fillCircle(arr, idx, cnt, Math.cos(a)*innerR*0.85, Math.sin(a)*innerR*0.85, 0, 0.08, 0.01);
+  }
+
+  // glowing core fill (the "reactor" center)
+  if (idx < N) idx = fillRandomFill(arr, idx, N-idx, 0,0,0, innerR*0.65);
+  return arr;
+}
+
+/* ---------- build stage position arrays ---------- */
+const stages = [
+  shapeDisperse(1),
+  shapeProcessor(),
+  shapeDisperse(2),
+  shapeDrone(),
+  shapeDisperse(3),
+  shapeRaspberryPi(),
+  shapeDisperse(4),
+  shapeArcReactor()
+];
+
+/* ---------- three.js setup ---------- */
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 100);
+camera.position.set(0,0,9);
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+const geometry = new THREE.BufferGeometry();
+const current = new Float32Array(N*3);
+current.set(stages[0]);
+geometry.setAttribute('position', new THREE.BufferAttribute(current, 3));
+
+const material = new THREE.PointsMaterial({
+  color: 0x0F6E56,
+  size: 0.05,
+  transparent: true,
+  opacity: 0.85,
+  sizeAttenuation: true
+});
+const points = new THREE.Points(geometry, material);
+scene.add(points);
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+/* ---------- scroll-driven morph ---------- */
+function easeInOut(t) { return t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t+2, 2)/2; }
+
+let targetProgress = 0;
+window.addEventListener('scroll', () => {
+  const max = document.documentElement.scrollHeight - window.innerHeight;
+  targetProgress = Math.min(Math.max(window.scrollY / max, 0), 1);
+}, { passive: true });
+
+let smoothProgress = 0;
+const posArr = geometry.attributes.position.array;
+
+function updateMorph(progress) {
+  const segments = stages.length - 1; // 7 transitions
+  const scaled = progress * segments;
+  const segIdx = Math.min(Math.floor(scaled), segments - 1);
+  const localT = easeInOut(scaled - segIdx);
+
+  const a = stages[segIdx];
+  const b = stages[segIdx + 1];
+
+  // curl noise strength peaks mid-transition for an organic disperse feel
+  const curl = Math.sin(localT * Math.PI) * 0.9;
+
+  for (let i = 0; i < N; i++) {
+    const ix = i*3, iy = i*3+1, iz = i*3+2;
+    const nx = (Math.random()-0.5) * curl * 0.15;
+    const ny = (Math.random()-0.5) * curl * 0.15;
+    const nz = (Math.random()-0.5) * curl * 0.15;
+    posArr[ix] = a[ix] + (b[ix]-a[ix]) * localT + nx;
+    posArr[iy] = a[iy] + (b[iy]-a[iy]) * localT + ny;
+    posArr[iz] = a[iz] + (b[iz]-a[iz]) * localT + nz;
+  }
+  geometry.attributes.position.needsUpdate = true;
+
+  // label: show name only near a settled shape (localT close to 0 or 1 at named stages)
+  const nearA = localT < 0.15 ? STAGE_NAMES[segIdx] : "";
+  const nearB = localT > 0.85 ? STAGE_NAMES[segIdx+1] : "";
+  const name = nearB || nearA;
+  if (name) {
+    labelEl.textContent = name;
+    labelEl.style.opacity = 1;
+  } else {
+    labelEl.style.opacity = 0;
+  }
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  smoothProgress += (targetProgress - smoothProgress) * 0.08;
+  updateMorph(smoothProgress);
+
+  points.rotation.y += 0.0015;
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>
