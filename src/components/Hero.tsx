@@ -4,7 +4,6 @@ import logo from '../assets/logo.png';
 const STATS = [
   { value: 'AOT × IIMCIP-TIC', label: 'PARTNERSHIP' },
   { value: '2026', label: 'FOUNDED' },
-  { value: '4+', label: 'AWARDS WON' },
   { value: 'Idea → PCB', label: 'FROM IDEA TO GADGET' },
 ];
 
