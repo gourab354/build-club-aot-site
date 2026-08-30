@@ -1,4 +1,4 @@
-import { useRef, useMemo, useState } from 'react';
+import { useRef, useMemo, useState, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
@@ -235,6 +235,16 @@ function easeInOut(t: number) {
 const MorphingParticles = () => {
   const pointsRef = useRef<THREE.Points>(null);
   const [smoothProgress, setSmoothProgress] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const initialPositions = useMemo(() => {
     const arr = new Float32Array(N * 3);
@@ -281,7 +291,7 @@ const MorphingParticles = () => {
   });
 
   return (
-    <points ref={pointsRef} scale={1.35}>
+    <points ref={pointsRef} scale={isMobile ? 0.7 : 1.35}>
       <bufferGeometry>
         <bufferAttribute
           attach="attributes-position"
