@@ -45,7 +45,13 @@ const TEAM = [
     image: '/archisman.jpg',
     linkedin: 'https://www.linkedin.com/in/archisman-pal-32554632a/',
   },
-  { initials: '?', name: 'Add teammate', role: 'Core team' },
+  {
+    initials: 'SS',
+    name: 'Swastik Saha',
+    role: 'Secretary',
+    image: '/swastik.jpg',
+    linkedin: 'https://www.linkedin.com/in/swastik-saha-aot/',
+  },
   { initials: '?', name: 'Add teammate', role: 'Core team' },
   { initials: '?', name: 'Add teammate', role: 'Core team' },
 ];
