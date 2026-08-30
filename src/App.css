@@ -527,6 +527,17 @@ section {
   font-weight: 700;
   color: #ffffff;
   box-shadow: 0 4px 14px rgba(72, 41, 186, 0.25);
+  overflow: hidden;
+}
+.person-card__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.person-card__link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
 }
 .person-card h4 {
   font-size: 1.05rem;

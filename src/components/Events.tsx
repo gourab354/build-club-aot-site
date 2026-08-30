@@ -3,11 +3,10 @@ import SignalWave from './SignalWave';
 import Reveal, { RevealStagger, RevealItem } from './Reveal';
 
 const EVENTS = [
-  { id: 'EV-01', title: 'Kickstart Workshop', date: 'Apr 2026', big: true },
-  { id: 'EV-02', title: 'Add event photo', date: 'TBA' },
-  { id: 'EV-03', title: 'Add event photo', date: 'TBA' },
-  { id: 'EV-04', title: 'Add event photo', date: 'TBA' },
-  { id: 'EV-05', title: 'Add event photo', date: 'TBA' },
+  { id: 'EV-01', title: 'Kickstart Workshop', date: 'Apr 2026', big: true, image: '/kickstart.jpg' },
+  { id: 'EV-02', title: 'Workshop 1', date: 'TBA', image: '/workshop1.jpg' },
+  { id: 'EV-03', title: 'Demo Day', date: 'TBA', image: '/demo-day.jpeg' },
+  { id: 'EV-04', title: 'Event 2', date: 'TBA', image: '/event2.JPG' },
 ];
 
 export default function Events() {
@@ -30,7 +29,22 @@ export default function Events() {
               key={e.id}
               className={`event-tile ${e.big ? 'event-tile--big' : ''}`}
             >
-              <div className="event-tile__placeholder">
+              {e.image ? (
+                <img
+                  src={e.image}
+                  alt={e.title}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }}
+                  onError={(err) => {
+                    err.currentTarget.style.display = 'none';
+                    const next = err.currentTarget.nextElementSibling as HTMLElement;
+                    if (next) next.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              <div 
+                className="event-tile__placeholder"
+                style={{ display: e.image ? 'none' : 'flex' }}
+              >
                 <span>{e.id}</span>
               </div>
               <div className="event-tile__meta">
