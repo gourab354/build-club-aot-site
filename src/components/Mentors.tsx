@@ -38,7 +38,13 @@ const MENTORS = [
 ];
 
 const TEAM = [
-  { initials: 'YOU', name: 'Your name here', role: 'Core team' },
+  {
+    initials: 'AP',
+    name: 'Archisman Pal',
+    role: 'Secretary',
+    image: '/archisman.jpg',
+    linkedin: 'https://www.linkedin.com/in/archisman-pal-32554632a/',
+  },
   { initials: '?', name: 'Add teammate', role: 'Core team' },
   { initials: '?', name: 'Add teammate', role: 'Core team' },
   { initials: '?', name: 'Add teammate', role: 'Core team' },
@@ -108,13 +114,50 @@ export default function Mentors() {
 
         <h3 className="group-label">Core student team</h3>
         <RevealStagger className="people-grid">
-          {TEAM.map((m, i) => (
-            <RevealItem key={i} className="person-card person-card--dim">
-              <div className="person-card__avatar">{m.initials}</div>
-              <h4>{m.name}</h4>
-              <p className="person-card__role">{m.role}</p>
-            </RevealItem>
-          ))}
+          {TEAM.map((m, i) => {
+            const cardContent = (
+              <>
+                <div className="person-card__avatar">
+                  {m.image && (
+                    <img
+                      src={m.image}
+                      alt={m.name}
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        const next = e.currentTarget.nextElementSibling as HTMLElement;
+                        if (next) next.style.display = 'flex';
+                      }}
+                    />
+                  )}
+                  <span
+                    style={{
+                      display: m.image ? 'none' : 'flex',
+                      width: '100%',
+                      height: '100%',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {m.initials}
+                  </span>
+                </div>
+                <h4>{m.name}</h4>
+                <p className="person-card__role">{m.role}</p>
+              </>
+            );
+
+            return (
+              <RevealItem key={i} className="person-card person-card--dim">
+                {m.linkedin ? (
+                  <a href={m.linkedin} target="_blank" rel="noopener noreferrer" className="person-card__link">
+                    {cardContent}
+                  </a>
+                ) : (
+                  cardContent
+                )}
+              </RevealItem>
+            );
+          })}
         </RevealStagger>
       </div>
       <TraceDivider />
