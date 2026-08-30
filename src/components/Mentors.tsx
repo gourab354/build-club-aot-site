@@ -52,7 +52,13 @@ const TEAM = [
     image: '/swastik.jpg',
     linkedin: 'https://www.linkedin.com/in/swastik-saha-aot/',
   },
-  { initials: '?', name: 'Add teammate', role: 'Core team' },
+  {
+    initials: 'GD',
+    name: 'Gourab Dutta',
+    role: 'Vice Secretary',
+    image: '/gourab.jpg',
+    linkedin: 'https://www.linkedin.com/in/gourabdutta354/',
+  },
   { initials: '?', name: 'Add teammate', role: 'Core team' },
 ];
 
