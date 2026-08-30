@@ -4,6 +4,14 @@ import Reveal, { RevealStagger, RevealItem } from './Reveal';
 
 const MENTORS = [
   {
+    initials: 'PG',
+    name: 'Pankaj Gogoi',
+    role: 'Head of Operations',
+    org: 'IIMCIP-TIC',
+    image: '/pankaj.jpg',
+    linkedin: 'https://www.linkedin.com/in/pankajgogoi/',
+  },
+  {
     initials: 'SR',
     name: 'Sankha Ray',
     role: 'Manager, Projects & Operations',
