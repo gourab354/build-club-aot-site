@@ -302,7 +302,7 @@ const MorphingParticles = () => {
         size={0.045}
         color="#4829BA" // Dark blue / Royal Purple
         transparent
-        opacity={0.85}
+        opacity={isMobile ? 0.25 : 0.85}
         sizeAttenuation
       />
     </points>
